@@ -148,6 +148,16 @@ namespace Dockyard.Interop
                 if (ico != null) return ico;
             }
 
+            // Shortcuts: read the icon they name rather than asking the shell to render the
+            // shortcut. For .url files (Steam games) and .lnk files whose icon is a small
+            // UWP asset (Xbox games), the shell's answer is the icon at its native size
+            // centered on a solid square instead of scaled up — the shrunken-tile bug.
+            if (ext == ".lnk" || ext == ".url")
+            {
+                ImageSource fromShortcut = FromShortcut(path);
+                if (fromShortcut != null) return fromShortcut;
+            }
+
             ImageSource shell = FromShellItem(path, size);
             if (shell != null) return shell;
 
@@ -194,6 +204,30 @@ namespace Dockyard.Interop
                 return bmp;
             }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// The icon a shortcut names for itself: IconFile= inside a .url, IconLocation on a .lnk.
+        /// Returns null when there isn't one, leaving the ordinary shell path to take over.
+        /// </summary>
+        private static ImageSource FromShortcut(string path)
+        {
+            try
+            {
+                if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+                {
+                    UrlTarget url = ShortcutResolver.ResolveUrlFile(path);
+                    if (url != null && !string.IsNullOrWhiteSpace(url.IconFile) && File.Exists(url.IconFile))
+                        return Load(url.IconFile);
+                    return null;
+                }
+
+                ShortcutTarget target = ShortcutResolver.Resolve(path);
+                if (target != null && !string.IsNullOrWhiteSpace(target.IconPath) && File.Exists(target.IconPath))
+                    return Load(target.IconPath);
+            }
+            catch { }
+            return null;
         }
 
         private static ImageSource FromShellItem(string path, int size)

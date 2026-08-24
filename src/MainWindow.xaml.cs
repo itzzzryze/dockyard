@@ -1340,10 +1340,17 @@ namespace Dockyard
             if (ext == ".lnk")
             {
                 ShortcutTarget t = ShortcutResolver.Resolve(path);
-                if (t != null && !string.IsNullOrWhiteSpace(t.Path))
+                if (t != null)
                 {
-                    string icon = !string.IsNullOrWhiteSpace(t.IconPath) ? t.IconPath : t.Path;
-                    AddItem(name, t.Path, t.Arguments, t.WorkingDirectory, icon);
+                    // Xbox/Store shortcuts have no resolvable target path — the IDList inside
+                    // the .lnk does the launching. Keep the shortcut itself as the launch
+                    // target then, but still take its IconLocation for the tile.
+                    bool hasTarget = !string.IsNullOrWhiteSpace(t.Path);
+                    string launch = hasTarget ? t.Path : path;
+                    string args = hasTarget ? t.Arguments : "";
+                    string workdir = hasTarget ? t.WorkingDirectory : "";
+                    string icon = !string.IsNullOrWhiteSpace(t.IconPath) ? t.IconPath : launch;
+                    AddItem(name, launch, args, workdir, icon);
                     return;
                 }
                 // Unresolvable (Store app shortcuts, mostly): launch the .lnk itself.
